@@ -15,7 +15,6 @@ def url_to_image(url):
 url = 'https://i.pinimg.com/originals/5e/6f/c1/5e6fc1b854408c51b5655e0ed00d55f8.jpg'
 img = url_to_image(url)
 cv2.imshow('image',img)
-cv2.waitKey()
 ################################################################
 # Init FaceAnalysis module by its default models
 
