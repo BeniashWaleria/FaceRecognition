@@ -3,18 +3,18 @@ import urllib
 import urllib.request
 import cv2
 import numpy as np
-import pandas as pd
+from PIL import ImageDraw, ImageFont
 
 
-def url_to_image(url):
-    resp = urllib.request.urlopen(url)
+def url_to_image(url_):
+    resp = urllib.request.urlopen(url_)
     image = np.asarray(bytearray(resp.read()), dtype="uint8")
     image = cv2.imdecode(image, cv2.IMREAD_COLOR)
     return image
 
 
-def crop_rect(image, boxes):
-    for i, box in enumerate(boxes):
+def crop_rect(image, bboxes):
+    for i, box in enumerate(bboxes):
         (x, y, w, h) = (box[0], box[1], box[2], box[3])
         cropped = image[y:h, x:w]
         cv2.imwrite("cropped_face" + str(i) + ".jpg", cropped)
@@ -30,12 +30,17 @@ def landmark_def(image, landmarks_arr):
         i = i + 2
     return image
 
-
+def draw_boxes(im, box_array, label_list):
+    for idx, box in enumerate(box_array):
+        x, y, w, h = box_array
+        cv2.rectangle(im, (x, y), (w, h), (0, 255, 255), 2)
+        draw = ImageDraw.Draw(im)
+        draw.text((10, 10), label_list, font=unicode_font, fill=font_color)
 ###################################################################################
 # upload the image and convert BGR to RGB
+
 url = 'https://i.pinimg.com/originals/5e/6f/c1/5e6fc1b854408c51b5655e0ed00d55f8.jpg'
 img = url_to_image(url)
-cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 
 ################################################################
 # Init FaceAnalysis module by its default models
@@ -54,44 +59,24 @@ ctx_id = -1
 model.prepare(ctx_id=ctx_id, nms=0.4)
 
 ################################################################
-# Analyse faces in this image
+# Make inscriptions for photos
 
-results = pd.DataFrame(columns=['Face_Id', 'Age', 'Gender', 'Embedding shape', 'Bbox', 'Landmark'])
-boxes = []
-landmarks = []
+font_size = 36
+width = 500
+height = 100
+back_ground_color = (0, 255, 255)
+font_color = (0, 0, 0)
+unicode_font = ImageFont.truetype("arial.ttf", font_size)
 
 faces = model.get(img)
+boxes = []
 for idx, face in enumerate(faces):
-    gender = 'Male'
-    if face.gender == 0:
-        gender = 'Female'
-    bbox = face.bbox.astype(np.int).flatten()
+    bbox = face.bbox.astype(np.int)
     boxes.append(bbox)
-    landmark = face.landmark.astype(np.int).flatten()
-    landmarks.append(landmark)
-    age = face.age
-    shape = face.embedding.shape
+print(boxes)
 
-    ################################################################
-    # save results of analysis to csv file
 
-    results = results.append(
-        {'Face_Id': idx + 1, 'Age': age, 'Gender': gender, 'Embedding shape': shape, 'Bbox': bbox,
-         'Landmark': landmark},
-        ignore_index=True)
-    results.to_csv("RESULTS.csv", index=False, mode='w', sep=';')
 
-################################################################
-# crop faces and save them,add rectangles
 
-crop_rect(img, boxes)
 
-################################################################
-# add landmarks
 
-for array in landmarks:
-    landmark_def(img, array)
-cv2.imshow("IMAGE", img)
-cv2.waitKey(0)
-
-################################################################
