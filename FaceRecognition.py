@@ -14,11 +14,9 @@ def url_to_image(url):
 
 
 def crop_rect(image, boxes):
-    for i, box in enumerate(boxes):
-        (x, y, w, h) = (box[0], box[1], box[2], box[3])
-        cropped = image[y:h, x:w]
-        cv2.imwrite("cropped_face" + str(i) + ".jpg", cropped)
-        cv2.rectangle(img, (x, y), (w, h), (0, 255, 255), 2)
+    (x, y, w, h) = boxes
+ #   cropped = image[y:h, x:w]
+    cv2.rectangle(img, (x, y), (w, h), (0, 255, 255), 2)
     return image
 
 
@@ -84,7 +82,7 @@ for idx, face in enumerate(faces):
 ################################################################
 # crop faces and save them,add rectangles
 
-crop_rect(img, boxes)
+crop_rect(img, boxes[0])
 
 ################################################################
 # add landmarks
@@ -92,6 +90,7 @@ crop_rect(img, boxes)
 for array in landmarks:
     landmark_def(img, array)
 cv2.imshow("IMAGE", img)
+print(type(img))
 cv2.waitKey(0)
 
 ################################################################

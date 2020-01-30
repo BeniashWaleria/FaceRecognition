@@ -1,47 +1,55 @@
 import insightface
-import urllib
-import urllib.request
-import cv2
+import requests
+import os
+from io import BytesIO
 import numpy as np
-from PIL import ImageDraw, ImageFont
+import re
+from PIL import Image, ImageDraw, ImageFont
+from numpy.linalg import norm
 
 
 def url_to_image(url_):
-    resp = urllib.request.urlopen(url_)
-    image = np.asarray(bytearray(resp.read()), dtype="uint8")
-    image = cv2.imdecode(image, cv2.IMREAD_COLOR)
-    return image
+    if re.match('http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+] |[!*(), ]|(?:%[0-9a-fA-F][0-9a-fA-F]))+', url_):
+        resp = requests.get(url_)
+        image_ = Image.open(BytesIO(resp.content))
+    else:
+        image_ = Image.open(url_)
+    return image_
 
 
-def crop_rect(image, bboxes):
-    for i, box in enumerate(bboxes):
-        (x, y, w, h) = (box[0], box[1], box[2], box[3])
-        cropped = image[y:h, x:w]
-        cv2.imwrite("cropped_face" + str(i) + ".jpg", cropped)
-        cv2.rectangle(img, (x, y), (w, h), (0, 255, 255), 2)
-    return image
+def get_label(filename):
+    basename = os.path.basename(filename)
+    name = '.'.join(basename.split('.')[:-1])
+    return name
 
 
-def landmark_def(image, landmarks_arr):
-    i = 0
-    while i < len(landmarks_arr):
-        print(i)
-        cv2.circle(img, (landmarks_arr[i], landmarks_arr[i + 1]), 2, thickness=-1, color=(0, 255, 255))
-        i = i + 2
-    return image
+def compute_sim(db_matr, test_vect=None):
+    distances = norm(db_matr - test_vect, 2, 1)
+    angles = np.arccos(db_matr @ test_vect.T / (norm(db_matr, 2, 1) * norm(test_vect, 2))) * 180 / np.pi
+    return angles, distances
+
+
+def get_embeddings(image_, model_):
+    faces_ = model_.get(np.array(image_))
+    embeddings_ = []
+    for i in faces_:
+        embeddings_.append(i.embedding)
+    return np.asarray(embeddings_)
+
 
 def draw_boxes(im, box_array, label_list):
-    for idx, box in enumerate(box_array):
-        x, y, w, h = box_array
-        cv2.rectangle(im, (x, y), (w, h), (0, 255, 255), 2)
+    for label_, box in zip(label_list, box_array):
+        x, y, w, h = box
         draw = ImageDraw.Draw(im)
-        draw.text((10, 10), label_list, font=unicode_font, fill=font_color)
+        draw.rectangle((x, y, w, h), outline='yellow', width=2)
+        draw.text((x, h), label_, font=unicode_font, fill=font_color,back_ground_color='white')
+
+
 ###################################################################################
-# upload the image and convert BGR to RGB
+# upload the image
 
-url = 'https://i.pinimg.com/originals/5e/6f/c1/5e6fc1b854408c51b5655e0ed00d55f8.jpg'
+url = r'C:\Users\User\Desktop\ALL.jpg'
 img = url_to_image(url)
-
 ################################################################
 # Init FaceAnalysis module by its default models
 
@@ -61,22 +69,43 @@ model.prepare(ctx_id=ctx_id, nms=0.4)
 ################################################################
 # Make inscriptions for photos
 
-font_size = 36
+font_size = 14
 width = 500
 height = 100
-back_ground_color = (0, 255, 255)
-font_color = (0, 0, 0)
+back_ground_color = (0, 0, 255)
+font_color = (0, 250, 250)
 unicode_font = ImageFont.truetype("arial.ttf", font_size)
+directory = r'C:\Users\User\Desktop\Samples'
 
-faces = model.get(img)
+labels = []
+embeddings_arr = []
+for filename_ in os.listdir(directory):
+    image = url_to_image(directory + "\\" + filename_)
+    embeddings_arr.append(get_embeddings(np.asarray(image), model))
+    labels.append(get_label(filename_))
+
+embeddings_arr = np.asarray(embeddings_arr)
+embeddings_main = get_embeddings(np.asarray(img), model)
+threshold = 75
+predicted_labs = []
+######################################################################
+# perform face  recognition
+
+print(labels)
+for label, emb in zip(labels[0:3], embeddings_arr[0:3]):
+    angles_, distances_ = compute_sim(emb, embeddings_main)
+    min_angle = angles_.min()
+    index = angles_.argmin()
+    if min_angle < threshold:
+        predicted_labs.append(labels[index])
+    else:
+        print(min_angle)
+print(predicted_labs)
 boxes = []
+faces = model.get(np.asarray(img))
 for idx, face in enumerate(faces):
     bbox = face.bbox.astype(np.int)
     boxes.append(bbox)
-print(boxes)
-
-
-
-
-
-
+boxes = np.asarray(boxes)
+draw_boxes(img, boxes, predicted_labs)
+img.show()
