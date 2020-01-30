@@ -43,13 +43,14 @@ def draw_boxes(im, box_array, label_list):
         draw = ImageDraw.Draw(im)
         draw.rectangle((x, y, w, h), outline='yellow', width=2)
         draw.text((x, h), label_, font=unicode_font, fill=font_color,back_ground_color='white')
-
+    im.show()
 
 ###################################################################################
 # upload the image
 
-url = r'C:\Users\User\Desktop\ALL.jpg'
-img = url_to_image(url)
+url = r'https://i.pinimg.com/originals/5e/6f/c1/5e6fc1b854408c51b5655e0ed00d55f8.jpg'
+
+
 ################################################################
 # Init FaceAnalysis module by its default models
 
@@ -68,14 +69,14 @@ model.prepare(ctx_id=ctx_id, nms=0.4)
 
 ################################################################
 # Make inscriptions for photos
-
+img = url_to_image(url)
 font_size = 14
 width = 500
 height = 100
 back_ground_color = (0, 0, 255)
 font_color = (0, 250, 250)
 unicode_font = ImageFont.truetype("arial.ttf", font_size)
-directory = r'C:\Users\User\Desktop\Samples'
+directory = 'Samples'
 
 labels = []
 embeddings_arr = []
@@ -92,7 +93,7 @@ predicted_labs = []
 # perform face  recognition
 
 print(labels)
-for label, emb in zip(labels[0:3], embeddings_arr[0:3]):
+for label, emb in zip(labels, embeddings_arr):
     angles_, distances_ = compute_sim(emb, embeddings_main)
     min_angle = angles_.min()
     index = angles_.argmin()
